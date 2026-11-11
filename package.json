@@ -5,7 +5,17 @@
   "type": "module",
   "description": "Shared lead intake for 3 B's Tree Removal: website form, phone agent, website chat.",
   "main": "server.js",
-  "engines": { "node": ">=20" },
-  "scripts": { "start": "node server.js", "test": "node --test" },
-  "dependencies": { "express": "^4.21.2", "pg": "^8.13.1", "resend": "^4.0.1" }
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test --test-force-exit test/*.test.js"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "pg": "^8.13.1",
+    "resend": "^4.0.1",
+    "ws": "^8.22.2"
+  }
 }

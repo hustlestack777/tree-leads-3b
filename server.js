@@ -4,6 +4,7 @@ import { Resend } from "resend";
 import { config } from "./config.js";
 import { db, migrate } from "./db.js";
 import { buildCustomerEmail, buildTeamEmail } from "./emails.js";
+import { registerVoice } from "./voice.js";
 
 const app = express();
 app.set("trust proxy", true);
@@ -157,6 +158,27 @@ app.post("/api/leads", async (req, res) => {
   }
 });
 
+/** Map a save_lead tool payload (ElevenLabs or Grok) to a lead row. */
+export function agentLead(b) {
+  const channel = String(b.channel || "phone").toLowerCase().includes("chat") ? "chat" : "phone";
+  return {
+    source: channel,
+    source_detail: s(b.conversation_id ? `conversation ${b.conversation_id}` : channel === "phone" ? "318-712-TREE" : "website chat", 200),
+    external_id: s(b.conversation_id, 120) ? `${channel}:${s(b.conversation_id, 120)}` : null,
+    name: s(b.name, 120), phone: s(b.phone || b.caller_phone, 40),
+    email: validEmail(s(b.email, 200)) ? s(b.email, 200) : null,
+    address: s(b.address, 300), town: s(b.town || b.parish, 120),
+    map_url: s(b.address) ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(b.address)}` : null,
+    job_types: s(b.job_type, 300), tree_count: s(b.tree_count, 40), stump_count: s(b.stump_count, 40),
+    urgent: b.urgent === true || /^(true|yes)$/i.test(String(b.urgent || "")),
+    hazards: s(b.hazards, 500), access: s(b.access, 500), how_soon: s(b.how_soon, 80),
+    best_day: s(b.best_day, 80), best_time: s(b.best_time || b.best_callback_time, 80),
+    description: s(b.description, 4000),
+    ballpark_low: int(b.ballpark_low), ballpark_high: int(b.ballpark_high),
+    call_summary: s(b.summary, 2000), raw: b,
+  };
+}
+
 // (2) Phone agent / chat agent server tool. ElevenLabs calls this with the details the caller gave.
 app.post("/api/agent-lead", async (req, res) => {
   const token = process.env.AGENT_TOOL_TOKEN;
@@ -165,24 +187,7 @@ app.post("/api/agent-lead", async (req, res) => {
     return res.status(401).json({ ok: false });
   }
   try {
-    const b = req.body || {};
-    const channel = String(b.channel || "phone").toLowerCase().includes("chat") ? "chat" : "phone";
-    const lead = {
-      source: channel,
-      source_detail: s(b.conversation_id ? `conversation ${b.conversation_id}` : channel === "phone" ? "318-712-TREE" : "website chat", 200),
-      external_id: s(b.conversation_id, 120) ? `${channel}:${s(b.conversation_id, 120)}` : null,
-      name: s(b.name, 120), phone: s(b.phone || b.caller_phone, 40),
-      email: validEmail(s(b.email, 200)) ? s(b.email, 200) : null,
-      address: s(b.address, 300), town: s(b.town || b.parish, 120),
-      map_url: s(b.address) ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(b.address)}` : null,
-      job_types: s(b.job_type, 300), tree_count: s(b.tree_count, 40), stump_count: s(b.stump_count, 40),
-      urgent: b.urgent === true || /^(true|yes)$/i.test(String(b.urgent || "")),
-      hazards: s(b.hazards, 500), access: s(b.access, 500), how_soon: s(b.how_soon, 80),
-      best_day: s(b.best_day, 80), best_time: s(b.best_time || b.best_callback_time, 80),
-      description: s(b.description, 4000),
-      ballpark_low: int(b.ballpark_low), ballpark_high: int(b.ballpark_high),
-      call_summary: s(b.summary, 2000), raw: b,
-    };
+    const lead = agentLead(req.body || {});
     const r = await intake(lead, []);
     res.json({ ok: true, saved: !!r.id || r.duplicate, message: "Lead saved. Tell the caller our team will call them back." });
   } catch (e) {
@@ -204,4 +209,6 @@ app.get("/photo/:id/:idx", async (req, res) => {
 
 const port = Number(process.env.PORT || 10000);
 migrate().then(() => console.log("tree_leads schema ready")).catch((e) => console.error("migrate failed", e.message));
-app.listen(port, () => console.log(`tree leads listening on ${port}`));
+const server = app.listen(port, () => console.log(`tree leads listening on ${port}`));
+// Grok Voice backup answerer (inert until Twilio points at /twilio/*).
+registerVoice(app, server, { intake, agentLead, publicUrl: () => config.PUBLIC_URL });
