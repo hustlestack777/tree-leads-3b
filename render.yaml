@@ -1,0 +1,26 @@
+# 3 B's Tree Removal shared lead intake. Free web service.
+# Leads are stored in their own schema (tree_leads) inside the existing firewood-db
+# instance, so no new paid database is needed. Move with one DATABASE_URL change.
+services:
+  - type: web
+    name: tree-leads-3b
+    runtime: node
+    plan: free
+    region: virginia
+    branch: main
+    buildCommand: npm ci
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: firewood-db
+          property: connectionString
+      - key: LEAD_TEAM_EMAILS
+        value: "shaun.brasher@gmail.com"
+      - key: RESEND_FROM
+        value: "3 B's Tree Removal <leads@hustlestack.app>"
+      - key: RESEND_API_KEY
+        sync: false
+      - key: AGENT_TOOL_TOKEN
+        sync: false

@@ -1,0 +1,11 @@
+{
+  "name": "tree-leads-3b",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Shared lead intake for 3 B's Tree Removal: website form, phone agent, website chat.",
+  "main": "server.js",
+  "engines": { "node": ">=20" },
+  "scripts": { "start": "node server.js", "test": "node --test" },
+  "dependencies": { "express": "^4.21.2", "pg": "^8.13.1", "resend": "^4.0.1" }
+}
