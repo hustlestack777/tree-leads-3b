@@ -92,8 +92,9 @@ export function buildCustomerEmail(lead) {
 ${rangeHtml}
 <p><b>Here's what you sent us:</b></p>
 ${table(rows)}
+${lead.source !== "web" && !lead.photo_count ? `<p>Want to send photos? You can add them here: <a href="${esc(config.SITE_URL)}">${esc(config.SITE_URL)}</a>. Photos are optional; your description is enough for us to get started.</p>` : ""}
 <p>Anything to add or change? Just reply to this email, or call us at <a href="tel:${config.PHONE_TEL}">${esc(config.PHONE_DISPLAY)}</a>.</p>
 <p>${esc(config.BUSINESS_NAME)}<br>Serving ${esc(config.REGION)}<br>${esc(config.PHONE_DISPLAY)}</p></div>`;
-  const text = `Hi ${first},\n\nThanks for reaching out to ${config.BUSINESS_NAME}. We got your request, and our team will call you back${lead.best_day || lead.best_time ? " at the time you picked" : " soon"}.\n\n${rangeText}\n\nHere's what you sent us:\n${textRows(rows)}\n\nAnything to add or change? Just reply to this email, or call us at ${config.PHONE_DISPLAY}.\n\n${config.BUSINESS_NAME}\nServing ${config.REGION}\n${config.PHONE_DISPLAY}`;
+  const text = `Hi ${first},\n\nThanks for reaching out to ${config.BUSINESS_NAME}. We got your request, and our team will call you back${lead.best_day || lead.best_time ? " at the time you picked" : " soon"}.\n\n${rangeText}\n\nHere's what you sent us:\n${textRows(rows)}${lead.source !== "web" && !lead.photo_count ? `\n\nWant to send photos? You can add them here: ${config.SITE_URL} Photos are optional; your description is enough for us to get started.` : ""}\n\nAnything to add or change? Just reply to this email, or call us at ${config.PHONE_DISPLAY}.\n\n${config.BUSINESS_NAME}\nServing ${config.REGION}\n${config.PHONE_DISPLAY}`;
   return { subject, html, text };
 }

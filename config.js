@@ -16,6 +16,8 @@ export const config = {
   REGION: "Central & Southwest Louisiana",
   // Public base URL of this service, used for photo links in the team email.
   PUBLIC_URL: process.env.PUBLIC_URL || process.env.RENDER_EXTERNAL_URL || "",
+  // Quote form link given to phone/chat customers so they can add photos.
+  SITE_URL: process.env.SITE_URL || "https://hustlestack777.github.io/preview-3b-dc5d2e3804ad/",
   // Browser origins allowed to post the website form.
   ALLOWED_ORIGINS: list(process.env.ALLOWED_ORIGINS ?? "https://hustlestack777.github.io,https://3bstreeremoval.com,https://www.3bstreeremoval.com"),
 };
