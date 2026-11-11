@@ -16,7 +16,7 @@ Each lead is saved to `tree_leads.leads` (+ `tree_leads.lead_photos`), then:
 ## Who gets copies (one line)
 
 `LEAD_TEAM_EMAILS` (Render env var, or the default in `config.js`). Comma-separated.
-Add Blake: `shaun.brasher@gmail.com,berryblake98@gmail.com`.
+Add Blake: append his address after a comma.
 
 Test leads: any phone with a 555 exchange (e.g. 337-555-0142) gets `TEST –` in every subject.
 
