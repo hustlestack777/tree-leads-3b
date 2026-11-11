@@ -27,7 +27,7 @@ function detailRows(lead, { internal }) {
     ["Stumps", lead.stump_count],
     ["Storm / urgent", lead.urgent ? "Yes" : ""],
     ["What's near it", lead.hazards],
-    ["Access", lead.access],
+    ["Access / notes", lead.access],
     ["How soon", lead.how_soon],
     ["Best day to call", lead.best_day],
     ["Best time to call", lead.best_time],

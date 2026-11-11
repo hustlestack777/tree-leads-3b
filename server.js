@@ -141,7 +141,7 @@ app.post("/api/leads", async (req, res) => {
       map_url: hasPoint ? `https://www.google.com/maps/search/?api=1&query=${lat},${lon}` : (s(b.address) ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(b.address)}` : null),
       job_types: s(Array.isArray(b.jobTypeLabels) ? b.jobTypeLabels.join(", ") : b.jobTypeLabels, 300),
       tree_count: s(b.treeCount, 20), stump_count: s(b.stumpCount, 20),
-      urgent: !!b.stormUrgent, hazards: s(b.hazards, 500), access: s(b.access, 500),
+      urgent: !!b.stormUrgent, hazards: s(b.hazards, 500), access: s(b.access || b.comments, 800),
       how_soon: s(b.howSoon, 80), best_day: s(b.bestDay, 80), best_time: s(b.bestTime, 80),
       description: s(b.notes, 4000),
       breakdown: s(Array.isArray(b.breakdown) ? b.breakdown.map((l) => `${l.label}: $${l.low}–$${l.high}`).join("; ") : null, 1000),
