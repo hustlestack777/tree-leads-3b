@@ -19,7 +19,7 @@ services:
       - key: LEAD_TEAM_EMAILS
         value: "shaun.brasher@gmail.com"
       - key: RESEND_FROM
-        value: "3 B's Tree Removal <leads@hustlestack.app>"
+        value: "3 B's Tree Removal <3bs@getpros.xyz>"
       - key: RESEND_API_KEY
         sync: false
       - key: AGENT_TOOL_TOKEN

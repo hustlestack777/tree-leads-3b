@@ -64,6 +64,13 @@ async function intake(lead, photos) {
   const id = crypto.randomUUID();
   const photoKey = crypto.randomBytes(18).toString("base64url");
   lead.test = isTest(lead);
+  // Only pruning / trimming ever carries a price range. Removals, stumps, storm cleanup,
+  // land clearing and dirt work are "call for a ballpark" (Shaun), so drop any range.
+  if (/remov|stump|storm|clear|grad|pad|drain|ditch|haul|dirt|other/i.test(String(lead.job_types || ""))) {
+    lead.ballpark_low = null;
+    lead.ballpark_high = null;
+    lead.breakdown = null;
+  }
   const ins = await db().query(
     `INSERT INTO tree_leads.leads (id, source, source_detail, external_id, test, name, phone, email, address, town, lat, lon, map_url,
        job_types, tree_count, stump_count, urgent, hazards, access, how_soon, best_day, best_time, description, breakdown,
@@ -100,11 +107,16 @@ async function sendEmails(lead, photos, photoKey) {
   // Test leads (name starting with TEST, 555 phone, or "test" source) go to Shaun only,
   // never to Blake or any other team inbox.
   const teamTo = lead.test ? [TEST_LEAD_INBOX] : config.LEAD_TEAM_EMAILS;
+  // Try each sender in order (3bs@getpros.xyz first); a sender Resend refuses falls through
+  // to the next one so the alert still goes out.
   const send = async (label, payload, key) => {
-    for (let attempt = 0; attempt < 2; attempt++) {
-      const { data, error } = await resend.emails.send(payload, { idempotencyKey: key });
-      if (!error) return data?.id || null;
-      if (attempt) errors.push(`${label}: ${error.message}`);
+    const froms = Array.isArray(payload.from) ? payload.from : [payload.from];
+    for (const [fi, from] of froms.entries()) {
+      for (let attempt = 0; attempt < 2; attempt++) {
+        const { data, error } = await resend.emails.send({ ...payload, from }, { idempotencyKey: fi ? `${key}/f${fi}` : key });
+        if (!error) return data?.id || null;
+        if (attempt) errors.push(`${label} (${from}): ${error.message}`);
+      }
     }
     return null;
   };

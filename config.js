@@ -2,6 +2,14 @@
 // Every value can be overridden by an environment variable of the same name.
 const list = (v) => String(v || "").split(",").map((s) => s.trim()).filter(Boolean);
 
+const PREFERRED_FROM = ["3 B's Tree Removal <3bs@getpros.xyz>", "3 B's Tree Removal <3bs@lagniapperealmlabs.com>"];
+function fromList(env) {
+  const e = String(env || "").trim();
+  if (!e) return PREFERRED_FROM;
+  if (/hustlestack/i.test(e)) return [...PREFERRED_FROM, e];
+  return [e, ...PREFERRED_FROM.filter((f) => f !== e)];
+}
+
 export const config = {
   // Who gets the full lead card (details, photos, ballpark). Comma-separated.
   // Blake's slot: add his address here (or in the LEAD_TEAM_EMAILS env var) to turn his copies on.
@@ -9,7 +17,10 @@ export const config = {
   // Always blind-copied on every customer confirmation email (Shaun's standing rule).
   CUSTOMER_BCC: list(process.env.CUSTOMER_BCC ?? "shaun.brasher@gmail.com"),
   // Sender. Must be on a Resend-verified domain.
-  RESEND_FROM: process.env.RESEND_FROM || "3 B's Tree Removal <leads@hustlestack.app>",
+  // No Hustle Stack addresses on client mail (Shaun, Nov 12). getpros.xyz is verified in
+  // Resend; lagniapperealmlabs.com is the backup. A hustlestack.app RESEND_FROM env value is
+  // only used as a last resort if Resend refuses both, so a lead alert is never lost.
+  RESEND_FROM: fromList(process.env.RESEND_FROM),
   // Where a customer's reply goes.
   REPLY_TO: list(process.env.REPLY_TO ?? "shaun.brasher@gmail.com"),
   BUSINESS_NAME: "3 B's Tree Removal",
