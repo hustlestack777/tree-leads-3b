@@ -22,5 +22,6 @@ export const config = {
   SITE_URL: process.env.SITE_URL || "https://hustlestack777.github.io/preview-3b-dc5d2e3804ad/",
   // Browser origins allowed to post the website form.
   // The live lead-magnet page is always allowed, even when the env var overrides the list.
-  ALLOWED_ORIGINS: [...new Set([...list(process.env.ALLOWED_ORIGINS ?? "https://hustlestack777.github.io,https://3bstreeremoval.com,https://www.3bstreeremoval.com"), "https://tree-lrl-credit-preview.onrender.com"])],
+  ALLOWED_ORIGINS: [...new Set([...list(process.env.ALLOWED_ORIGINS ?? "https://hustlestack777.github.io,https://3bstreeremoval.com,https://www.3bstreeremoval.com"), "https://tree-lrl-credit-preview.onrender.com",
+    "https://3bs.getpros.xyz", "https://tree.getpros.xyz", "https://getpros.xyz", "https://www.getpros.xyz"])],
 };
