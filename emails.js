@@ -35,7 +35,7 @@ function detailRows(lead, { internal }) {
     ["Photos", lead.photo_count ? `${lead.photo_count}` : ""],
   ];
   if (internal) {
-    rows.push(["Ballpark given", ballparkText(lead) || "None yet (give one on the callback)"]);
+    rows.push(["Ballpark given", ballparkText(lead) || "None (call for a ballpark)"]);
     rows.push(["Ballpark breakdown", lead.breakdown]);
     rows.push(["Came in through", SOURCE_LABEL[lead.source] || lead.source]);
     rows.push(["Page / campaign", lead.source_detail]);
@@ -58,20 +58,18 @@ function table(rows) {
 const textRows = (rows) => rows.map(([k, v]) => `${k}: ${v}`).join("\n");
 
 export function buildTeamEmail(lead, photoLinks = []) {
+  // Plain, transactional alert (no button, no colors, no layout) so Gmail keeps it in the
+  // Primary inbox instead of Promotions. Always has a plain-text part.
   const tag = lead.test ? "TEST – " : "";
   const urgent = lead.urgent ? "URGENT – " : "";
   const where = lead.town || lead.address || "no address";
-  const subject = `${tag}${urgent}New tree lead (${SOURCE_LABEL[lead.source] || lead.source}): ${lead.name || "No name"} – ${where}`;
+  const subject = `${tag}${urgent}New lead: ${lead.name || "No name"} – ${where}`;
   const rows = detailRows(lead, { internal: true });
-  const links = photoLinks.length
-    ? `<p style="font:15px Arial,sans-serif"><b>Photos:</b> ${photoLinks.map((u, i) => `<a href="${esc(u)}">Photo ${i + 1}</a>`).join(" · ")} (also attached)</p>`
-    : "";
-  const call = lead.phone ? `<p><a href="tel:${esc(String(lead.phone).replace(/[^\d+]/g, ""))}" style="display:inline-block;background:#1f5130;color:#fff;padding:10px 16px;border-radius:6px;text-decoration:none;font:bold 15px Arial,sans-serif">Call ${esc(lead.name || "customer")}</a></p>` : "";
-  const html = `<div style="font:15px/1.4 Arial,sans-serif;color:#222">
-<h2 style="margin:0 0 8px">${esc(urgent)}New tree lead</h2>
-${call}${table(rows)}${links}
-<p style="color:#666;font-size:13px">Review the photos and the map, then call the customer back at their best time and confirm the real price.</p></div>`;
-  const text = `${urgent}New tree lead\n\n${textRows(rows)}\n${photoLinks.length ? "\nPhotos:\n" + photoLinks.join("\n") + "\n" : ""}\nReview the photos and the map, then call the customer back at their best time and confirm the real price.`;
+  const note = "Review the photos and the map, then call the customer back at their best time and confirm the real price.";
+  const html = `<div>${rows.map(([k, v]) => `${esc(k)}: ${esc(v).replace(/\n/g, "<br>")}`).join("<br>\n")}` +
+    (photoLinks.length ? `<br><br>\nPhotos (also attached):<br>\n${photoLinks.map((u, i) => `<a href="${esc(u)}">Photo ${i + 1}</a>`).join("<br>\n")}` : "") +
+    `<br><br>\n${esc(note)}</div>`;
+  const text = `${textRows(rows)}\n${photoLinks.length ? "\nPhotos (also attached):\n" + photoLinks.join("\n") + "\n" : ""}\n${note}`;
   return { subject, html, text };
 }
 
