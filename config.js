@@ -20,6 +20,9 @@ export const config = {
   PUBLIC_URL: process.env.PUBLIC_URL || process.env.RENDER_EXTERNAL_URL || "",
   // Quote form link given to phone/chat customers so they can add photos.
   SITE_URL: process.env.SITE_URL || "https://hustlestack777.github.io/preview-3b-dc5d2e3804ad/",
-  // Browser origins allowed to post the website form.
+  // Browser origins allowed to post the website form and call /api/ballpark.
+  // Get Pros additions (https://getpros.xyz, https://www.getpros.xyz, and the
+  // workers.dev preview origin) should be added via the ALLOWED_ORIGINS env var
+  // when that preview is deployed — do not apply them on the live service yet.
   ALLOWED_ORIGINS: list(process.env.ALLOWED_ORIGINS ?? "https://hustlestack777.github.io,https://3bstreeremoval.com,https://www.3bstreeremoval.com"),
 };

@@ -21,3 +21,28 @@ Add Blake: append his address after a comma.
 Test leads: any phone with a 555 exchange (e.g. 337-555-0142) gets `TEST –` in every subject.
 
 Copy rules: never names a person as the caller, no "free", no "insured", no texting.
+
+
+## Ballpark ranges (`POST /api/ballpark`)
+
+Same contract as the LRL credit preview: after the contact form (name, phone, consent), returns a trimming range or a callback. Prices come from `TREE_PRICING_JSON` and the `RANGE_MARKUP_*` env vars on this service, never from the repo or the page.
+
+CORS uses the same `ALLOWED_ORIGINS` list as `POST /api/leads`.
+
+### Get Pros origins — list only, do not apply yet
+
+When the Get Pros preview (and later the live domain) is ready, add these to the Render `ALLOWED_ORIGINS` env var on `tree-leads-3b-4omg` (comma-separated, no trailing slashes):
+
+- `https://getpros.xyz`
+- `https://www.getpros.xyz`
+- the Cloudflare `workers.dev` preview origin, once the Worker is deployed (for example `https://getpros-router.<account>.workers.dev`)
+
+Also update `SITE_URL` to `https://getpros.xyz/3bs-tree-removal/` so follow-up links in emails point at the magnet.
+
+Copy these env vars from the preview service `tree-lrl-credit-preview` onto this service before relying on `/api/ballpark` in production: `TREE_PRICING_JSON`, `RANGE_MARKUP` (optional), `RANGE_MARKUP_SMALL`, `RANGE_MARKUP_MEDIUM`, `RANGE_MARKUP_LARGE`. Do not change live env vars until that cutover is approved.
+
+ElevenLabs allowed-website origins to add at the same time (Camille on 3 B's, and Gigi on Acadiana), not applied yet:
+
+- `https://getpros.xyz`
+- `https://www.getpros.xyz`
+- the same `workers.dev` preview origin
