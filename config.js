@@ -21,5 +21,6 @@ export const config = {
   // Quote form link given to phone/chat customers so they can add photos.
   SITE_URL: process.env.SITE_URL || "https://hustlestack777.github.io/preview-3b-dc5d2e3804ad/",
   // Browser origins allowed to post the website form.
-  ALLOWED_ORIGINS: list(process.env.ALLOWED_ORIGINS ?? "https://hustlestack777.github.io,https://3bstreeremoval.com,https://www.3bstreeremoval.com"),
+  // The live lead-magnet page is always allowed, even when the env var overrides the list.
+  ALLOWED_ORIGINS: [...new Set([...list(process.env.ALLOWED_ORIGINS ?? "https://hustlestack777.github.io,https://3bstreeremoval.com,https://www.3bstreeremoval.com"), "https://tree-lrl-credit-preview.onrender.com"])],
 };
