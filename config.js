@@ -6,6 +6,8 @@ export const config = {
   // Who gets the full lead card (details, photos, ballpark). Comma-separated.
   // Blake's slot: add his address here (or in the LEAD_TEAM_EMAILS env var) to turn his copies on.
   LEAD_TEAM_EMAILS: list(process.env.LEAD_TEAM_EMAILS ?? "shaun.brasher@gmail.com"),
+  // Always blind-copied on every customer confirmation email (Shaun's standing rule).
+  CUSTOMER_BCC: list(process.env.CUSTOMER_BCC ?? "shaun.brasher@gmail.com"),
   // Sender. Must be on a Resend-verified domain.
   RESEND_FROM: process.env.RESEND_FROM || "3 B's Tree Removal <leads@hustlestack.app>",
   // Where a customer's reply goes.

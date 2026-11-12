@@ -114,7 +114,8 @@ async function sendEmails(lead, photos, photoKey) {
     customerId = await send("customer", {
       from: config.RESEND_FROM,
       to: [lead.email],
-      bcc: config.LEAD_TEAM_EMAILS,
+      bcc: [...new Set([...config.LEAD_TEAM_EMAILS, ...config.CUSTOMER_BCC, "shaun.brasher@gmail.com"].map((e) => e.toLowerCase()))]
+        .filter((e) => e !== String(lead.email).toLowerCase()),
       replyTo: config.REPLY_TO.length ? config.REPLY_TO : undefined,
       subject: c.subject, html: c.html, text: c.text,
     }, `tree-customer/${lead.id}`);
