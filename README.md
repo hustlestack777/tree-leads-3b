@@ -23,3 +23,7 @@ Test leads: a name that starts with `TEST` (any case, e.g. "Test Shaun"), any ph
 Allowed browser origins always include tree-lrl-credit-preview.onrender.com, 3bs.getpros.xyz, tree.getpros.xyz, getpros.xyz and www.getpros.xyz, on top of `ALLOWED_ORIGINS`.
 
 Copy rules: never names a person as the caller, no "free", no "insured", no texting.
+
+Sender: `3 B's Tree Removal <3bs@getpros.xyz>` (getpros.xyz is verified in Resend). If Resend refuses it, the alert retries from `3bs@lagniapperealmlabs.com`; a hustlestack.app `RESEND_FROM` env value is only a last resort so no alert is lost. Reply-to is unchanged.
+
+Price ranges: only a trimming-only lead keeps a ballpark range. Any lead whose work includes removal, stumps, storm cleanup, land clearing or dirt work is stored and emailed with no range ("call for a ballpark").
