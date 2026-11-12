@@ -14,6 +14,7 @@ const MAX_PHOTO_BYTES = 2.5 * 1024 * 1024;
 const s = (v, max = 2000) => (v === undefined || v === null ? null : String(v).trim().slice(0, max) || null);
 const int = (v) => { const n = Math.round(Number(v)); return Number.isFinite(n) && n > 0 ? n : null; };
 const validEmail = (e) => !!e && /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e);
+const TEST_LEAD_INBOX = "shaun.brasher@gmail.com";
 const isTest = (lead) => {
   const d = String(lead.phone || "").replace(/\D/g, "").replace(/^1(?=\d{10}$)/, "");
   return (d.length === 10 && d.slice(3, 6) === "555") || /\btest\b/i.test(lead.source_detail || "");
@@ -94,6 +95,8 @@ async function sendEmails(lead, photos, photoKey) {
   const team = buildTeamEmail(lead, photoLinks);
   const errors = [];
   let teamId = null, customerId = null;
+  // Test leads (555 phone or "test" source) go to Shaun only, never to Blake or any other team inbox.
+  const teamTo = lead.test ? [TEST_LEAD_INBOX] : config.LEAD_TEAM_EMAILS;
   const send = async (label, payload, key) => {
     for (let attempt = 0; attempt < 2; attempt++) {
       const { data, error } = await resend.emails.send(payload, { idempotencyKey: key });
@@ -104,7 +107,7 @@ async function sendEmails(lead, photos, photoKey) {
   };
   teamId = await send("team", {
     from: config.RESEND_FROM,
-    to: config.LEAD_TEAM_EMAILS,
+    to: teamTo,
     replyTo: validEmail(lead.email) ? lead.email : undefined,
     subject: team.subject, html: team.html, text: team.text,
     attachments: photos.map((p) => ({ filename: p.filename, content: p.bytes })),
@@ -114,7 +117,7 @@ async function sendEmails(lead, photos, photoKey) {
     customerId = await send("customer", {
       from: config.RESEND_FROM,
       to: [lead.email],
-      bcc: [...new Set([...config.LEAD_TEAM_EMAILS, ...config.CUSTOMER_BCC, "shaun.brasher@gmail.com"].map((e) => e.toLowerCase()))]
+      bcc: [...new Set([...(lead.test ? [] : [...config.LEAD_TEAM_EMAILS, ...config.CUSTOMER_BCC]), TEST_LEAD_INBOX].map((e) => e.toLowerCase()))]
         .filter((e) => e !== String(lead.email).toLowerCase()),
       replyTo: config.REPLY_TO.length ? config.REPLY_TO : undefined,
       subject: c.subject, html: c.html, text: c.text,
