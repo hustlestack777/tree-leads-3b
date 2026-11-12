@@ -15,9 +15,11 @@ const s = (v, max = 2000) => (v === undefined || v === null ? null : String(v).t
 const int = (v) => { const n = Math.round(Number(v)); return Number.isFinite(n) && n > 0 ? n : null; };
 const validEmail = (e) => !!e && /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e);
 const TEST_LEAD_INBOX = "shaun.brasher@gmail.com";
+// A name starting with "TEST" (any case) is a team test: Shaun only, no homeowner email.
+const isTestName = (lead) => /^\s*test/i.test(String(lead.name || ""));
 const isTest = (lead) => {
   const d = String(lead.phone || "").replace(/\D/g, "").replace(/^1(?=\d{10}$)/, "");
-  return (d.length === 10 && d.slice(3, 6) === "555") || /\btest\b/i.test(lead.source_detail || "");
+  return isTestName(lead) || (d.length === 10 && d.slice(3, 6) === "555") || /\btest\b/i.test(lead.source_detail || "");
 };
 
 // CORS for the website form.
@@ -95,7 +97,8 @@ async function sendEmails(lead, photos, photoKey) {
   const team = buildTeamEmail(lead, photoLinks);
   const errors = [];
   let teamId = null, customerId = null;
-  // Test leads (555 phone or "test" source) go to Shaun only, never to Blake or any other team inbox.
+  // Test leads (name starting with TEST, 555 phone, or "test" source) go to Shaun only,
+  // never to Blake or any other team inbox.
   const teamTo = lead.test ? [TEST_LEAD_INBOX] : config.LEAD_TEAM_EMAILS;
   const send = async (label, payload, key) => {
     for (let attempt = 0; attempt < 2; attempt++) {
@@ -112,7 +115,8 @@ async function sendEmails(lead, photos, photoKey) {
     subject: team.subject, html: team.html, text: team.text,
     attachments: photos.map((p) => ({ filename: p.filename, content: p.bytes })),
   }, `tree-team/${lead.id}`);
-  if (validEmail(lead.email)) {
+  // TEST-named leads never email the homeowner address that was typed in.
+  if (validEmail(lead.email) && !isTestName(lead)) {
     const c = buildCustomerEmail(lead);
     customerId = await send("customer", {
       from: config.RESEND_FROM,
