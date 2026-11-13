@@ -3,7 +3,7 @@ import express from "express";
 import { Resend } from "resend";
 import { config } from "./config.js";
 import { db, migrate } from "./db.js";
-import { buildCustomerEmail, buildTeamEmail } from "./emails.js";
+import { buildCustomerEmail, buildFeedbackEmail, buildTeamEmail } from "./emails.js";
 
 const app = express();
 app.set("trust proxy", true);
@@ -15,6 +15,7 @@ const s = (v, max = 2000) => (v === undefined || v === null ? null : String(v).t
 const int = (v) => { const n = Math.round(Number(v)); return Number.isFinite(n) && n > 0 ? n : null; };
 const validEmail = (e) => !!e && /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e);
 const TEST_LEAD_INBOX = "shaun.brasher@gmail.com";
+const FEEDBACK_TO = "shaun.brasher@gmail.com"; // Feedback never goes to Blake or the team list.
 // A name starting with "TEST" (any case) is a team test: Shaun only, no homeowner email.
 const isTestName = (lead) => /^\s*test/i.test(String(lead.name || ""));
 const isTest = (lead) => {
@@ -57,6 +58,17 @@ async function rateLimited(ip) {
   );
   db().query(`DELETE FROM tree_leads.rate WHERE at < now() - interval '1 day'`).catch(() => {});
   return r.rows[0].n > 10;
+}
+
+
+function requireAgentToken(req, res) {
+  const token = process.env.AGENT_TOOL_TOKEN;
+  const given = String(req.headers["x-lead-token"] || "");
+  if (!token || given.length !== token.length || !crypto.timingSafeEqual(Buffer.from(given), Buffer.from(token))) {
+    res.status(401).json({ ok: false });
+    return false;
+  }
+  return true;
 }
 
 /** Save one lead from any channel, then email the team and the customer. */
@@ -179,11 +191,7 @@ app.post("/api/leads", async (req, res) => {
 
 // (2) Phone agent / chat agent server tool. ElevenLabs calls this with the details the caller gave.
 app.post("/api/agent-lead", async (req, res) => {
-  const token = process.env.AGENT_TOOL_TOKEN;
-  const given = String(req.headers["x-lead-token"] || "");
-  if (!token || given.length !== token.length || !crypto.timingSafeEqual(Buffer.from(given), Buffer.from(token))) {
-    return res.status(401).json({ ok: false });
-  }
+  if (!requireAgentToken(req, res)) return;
   try {
     const b = req.body || {};
     const channel = String(b.channel || "phone").toLowerCase().includes("chat") ? "chat" : "phone";
@@ -208,6 +216,61 @@ app.post("/api/agent-lead", async (req, res) => {
   } catch (e) {
     console.error("agent lead failed", e);
     res.status(500).json({ ok: false, message: "Could not save. Keep taking details; our team still gets the call record." });
+  }
+});
+
+
+// (3) Agent feedback from Blake or Shaun. Emails Shaun only. Never creates a lead. Never emails Blake.
+app.post("/api/agent-feedback", async (req, res) => {
+  if (!requireAgentToken(req, res)) return;
+  try {
+    const b = req.body || {};
+    const feedback = s(b.feedback, 8000);
+    if (!feedback) return res.status(400).json({ ok: false, message: "Need the feedback in their words. Ask them to say it again, then retry." });
+    const id = crypto.randomUUID();
+    const row = {
+      id,
+      created_at: new Date(),
+      conversation_id: s(b.conversation_id, 120),
+      caller_name: s(b.caller_name, 80),
+      caller_phone: s(b.caller_phone || b.phone, 40),
+      feedback,
+    };
+    await db().query(
+      `INSERT INTO tree_leads.feedback (id, conversation_id, caller_name, caller_phone, feedback) VALUES ($1,$2,$3,$4,$5)`,
+      [id, row.conversation_id, row.caller_name, row.caller_phone, row.feedback],
+    );
+    let emailId = null, emailError = null;
+    if (!process.env.RESEND_API_KEY) {
+      emailError = "RESEND_API_KEY is not set";
+    } else {
+      const resend = new Resend(process.env.RESEND_API_KEY);
+      const mail = buildFeedbackEmail(row);
+      const errors = [];
+      const froms = Array.isArray(config.RESEND_FROM) ? config.RESEND_FROM : [config.RESEND_FROM];
+      const key = `tree-feedback/${id}`;
+      for (const [fi, from] of froms.entries()) {
+        for (let attempt = 0; attempt < 2; attempt++) {
+          const { data, error } = await resend.emails.send({
+            from,
+            to: [FEEDBACK_TO],
+            subject: mail.subject, html: mail.html, text: mail.text,
+          }, { idempotencyKey: fi ? `${key}/f${fi}` : key });
+          if (!error) { emailId = data?.id || null; break; }
+          if (attempt) errors.push(`${from}: ${error.message}`);
+        }
+        if (emailId) break;
+      }
+      emailError = emailId ? null : (errors.join("; ") || "send failed");
+    }
+    await db().query(`UPDATE tree_leads.feedback SET email_id=$2, email_error=$3 WHERE id=$1`, [id, emailId, emailError]);
+    if (!emailId) {
+      return res.status(500).json({ ok: false, message: "Could not send the feedback. Read it back and tell them you'll have Shaun review the call recording." });
+    }
+    res.json({ ok: true, saved: true, message: "Feedback sent to Shaun only. Tell the caller it goes to Shaun, and that nothing changes live from this call." });
+  } catch (e) {
+    console.error("agent feedback failed", e);
+    res.status(500).json({ ok: false, message: "Could not send the feedback. Read it back and tell them you'll have Shaun review the call recording." });
   }
 });
 
