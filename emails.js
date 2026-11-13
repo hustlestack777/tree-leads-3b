@@ -96,3 +96,20 @@ ${lead.source !== "web" && !lead.photo_count ? `<p>Want to send photos? You can 
   const text = `Hi ${first},\n\nThanks for reaching out to ${config.BUSINESS_NAME}. We got your request, and our team will call you back${lead.best_day || lead.best_time ? " at the time you picked" : " soon"}.\n\n${rangeText}\n\nHere's what you sent us:\n${textRows(rows)}${lead.source !== "web" && !lead.photo_count ? `\n\nWant to send photos? You can add them here: ${config.SITE_URL} Photos are optional; your description is enough for us to get started.` : ""}\n\nAnything to add or change? Just reply to this email, or call us at ${config.PHONE_DISPLAY}.\n\n${config.BUSINESS_NAME}\nServing ${config.REGION}\n${config.PHONE_DISPLAY}`;
   return { subject, html, text };
 }
+
+export function buildFeedbackEmail(fb) {
+  const who = String(fb.caller_name || "").trim() || "Unknown";
+  const subject = `Camille feedback from ${who}`;
+  const rows = [
+    ["From", who],
+    ["Caller phone", fb.caller_phone],
+    ["Conversation", fb.conversation_id],
+    ["Received", chicago(fb.created_at || new Date())],
+    ["Feedback (verbatim)", fb.feedback],
+  ].filter(([, v]) => v !== undefined && v !== null && String(v).trim() !== "");
+  const note = "This is agent feedback for Shaun only. Nothing was changed live. It is not a customer lead.";
+  const html = `<div>${rows.map(([k, v]) => `${esc(k)}: ${esc(v).replace(/\n/g, "<br>")}`).join("<br>\n")}` +
+    `<br><br>\n${esc(note)}</div>`;
+  const textBody = `${textRows(rows)}\n\n${note}`;
+  return { subject, html, text: textBody };
+}

@@ -42,5 +42,27 @@ export async function migrate() {
       PRIMARY KEY (lead_id, idx)
     );
     CREATE TABLE IF NOT EXISTS tree_leads.rate (ip text, at timestamptz NOT NULL DEFAULT now());
+    CREATE TABLE IF NOT EXISTS tree_leads.feedback (
+      id uuid PRIMARY KEY,
+      created_at timestamptz NOT NULL DEFAULT now(),
+      conversation_id text,
+      caller_name text,
+      caller_phone text,
+      feedback text NOT NULL,
+      email_id text,
+      email_error text
+    );
+  `);
+  // One-time: tag Shaun's 11/13/2026 9:22 AM CT test call so it stays out of real-lead counts.
+  // Idempotent: only updates this conversation, and only if it is still marked live.
+  await db().query(`
+    UPDATE tree_leads.leads
+       SET test = true,
+           source_detail = CASE
+             WHEN source_detail ILIKE '%source=test%' THEN source_detail
+             ELSE TRIM(BOTH ' ·' FROM COALESCE(source_detail, '') || ' · source=test')
+           END
+     WHERE external_id = 'phone:conv_1201m7ar126ff33a3f4rnkcm6phs'
+       AND test = false
   `);
 }
