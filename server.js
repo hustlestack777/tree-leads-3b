@@ -113,7 +113,7 @@ async function sendEmails(lead, photos, photoKey) {
   const resend = new Resend(process.env.RESEND_API_KEY);
   const base = config.PUBLIC_URL.replace(/\/$/, "");
   const photoLinks = base ? photos.map((_, i) => `${base}/photo/${lead.id}/${i}?k=${photoKey}`) : [];
-  const team = buildTeamEmail(lead, photoLinks);
+  const team = buildTeamEmail(lead, photoLinks, photos);
   const errors = [];
   let teamId = null, customerId = null;
   // Test leads (name starting with TEST, 555 phone, or "test" source) go to Shaun only,
