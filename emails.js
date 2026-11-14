@@ -10,6 +10,13 @@ export function ballparkText(lead) {
   return "";
 }
 
+function streetViewUrl(lead) {
+  const lat = Number(lead && lead.lat);
+  const lon = Number(lead && lead.lon);
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return "";
+  return "https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=" + lat + "," + lon;
+}
+
 function chicago(d) {
   return new Date(d).toLocaleString("en-US", { timeZone: "America/Chicago", dateStyle: "medium", timeStyle: "short" }) + " CT";
 }
@@ -40,6 +47,7 @@ function detailRows(lead, { internal }) {
     rows.push(["Came in through", SOURCE_LABEL[lead.source] || lead.source]);
     rows.push(["Page / campaign", lead.source_detail]);
     rows.push(["Map", lead.map_url]);
+    rows.push(["Street view", streetViewUrl(lead)]);
     rows.push(["Call summary", lead.call_summary]);
     rows.push(["Received", chicago(lead.created_at)]);
     rows.push(["Lead ID", lead.id]);
@@ -57,7 +65,7 @@ function table(rows) {
 
 const textRows = (rows) => rows.map(([k, v]) => `${k}: ${v}`).join("\n");
 
-export function buildTeamEmail(lead, photoLinks = []) {
+export function buildTeamEmail(lead, photoLinks = [], photos = []) {
   // Plain, transactional alert (no button, no colors, no layout) so Gmail keeps it in the
   // Primary inbox instead of Promotions. Always has a plain-text part.
   const tag = lead.test ? "TEST – " : "";
@@ -65,7 +73,13 @@ export function buildTeamEmail(lead, photoLinks = []) {
   const where = lead.town || lead.address || "no address";
   const subject = `${tag}${urgent}New lead: ${lead.name || "No name"} – ${where}`;
   const rows = detailRows(lead, { internal: true });
-  const note = "Review the photos and the map, then call the customer back at their best time and confirm the real price.";
+  if ((photos || []).some((p) => /satellite/i.test(String((p && p.filename) || "")))) {
+    const at = rows.findIndex(([k]) => k === "Street view");
+    const row = ["Satellite", "Attached as satellite.jpg"];
+    if (at >= 0) rows.splice(at + 1, 0, row);
+    else rows.push(row);
+  }
+  const note = "Review the address, open the street view link, and look at the photos. The satellite image is attached as satellite.jpg when the quote page had one. Then call the customer back at their best time and confirm the real price.";
   const html = `<div>${rows.map(([k, v]) => `${esc(k)}: ${esc(v).replace(/\n/g, "<br>")}`).join("<br>\n")}` +
     (photoLinks.length ? `<br><br>\nPhotos (also attached):<br>\n${photoLinks.map((u, i) => `<a href="${esc(u)}">Photo ${i + 1}</a>`).join("<br>\n")}` : "") +
     `<br><br>\n${esc(note)}</div>`;
