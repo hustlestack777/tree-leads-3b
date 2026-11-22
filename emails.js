@@ -1,4 +1,5 @@
 import { config } from "./config.js";
+import { areaFlag } from "./area.js";
 
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const money = (n) => "$" + Math.round(Number(n)).toLocaleString("en-US");
@@ -44,6 +45,8 @@ function detailRows(lead, { internal }) {
   if (internal) {
     const campaign = campaignLabel(lead);
     if (campaign) rows.unshift(["Source", campaign]);
+    const area = areaFlag(lead);
+    if (area.label) rows.splice(rows.findIndex(([k]) => k === "Work needed"), 0, ["Area", area.label]);
     rows.push(["Ballpark given", ballparkText(lead) || "None (call for a ballpark)"]);
     rows.push(["Ballpark breakdown", lead.breakdown]);
     rows.push(["Came in through", SOURCE_LABEL[lead.source] || lead.source]);
@@ -73,7 +76,8 @@ export function buildTeamEmail(lead, photoLinks = []) {
   const urgent = lead.urgent ? "URGENT – " : "";
   const where = lead.town || lead.address || "no address";
   const campaign = campaignLabel(lead);
-  const subject = `${tag}${urgent}New lead: ${lead.name || "No name"} – ${where}${campaign ? ` [${campaign}]` : ""}`;
+  const outside = areaFlag(lead).status === "outside" ? " [Outside main area]" : "";
+  const subject = `${tag}${urgent}New lead: ${lead.name || "No name"} – ${where}${campaign ? ` [${campaign}]` : ""}${outside}`;
   const rows = detailRows(lead, { internal: true });
   const note = "Review the photos and the map, then call the customer back at their best time and confirm the real price.";
   const html = `<div>${rows.map(([k, v]) => `${esc(k)}: ${esc(v).replace(/\n/g, "<br>")}`).join("<br>\n")}` +
