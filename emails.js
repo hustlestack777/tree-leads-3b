@@ -4,6 +4,13 @@ const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "
 const money = (n) => "$" + Math.round(Number(n)).toLocaleString("en-US");
 const SOURCE_LABEL = { web: "Website form", phone: "Phone call", chat: "Website chat" };
 
+/** Friendly campaign name for a lead, e.g. "FB reel Nov 22", or "" if none matches. */
+export function campaignLabel(lead) {
+  const d = String(lead.source_detail || "");
+  const hit = (config.CAMPAIGN_LABELS || []).find((c) => c.match.test(d));
+  return hit ? hit.label : "";
+}
+
 export function ballparkText(lead) {
   const lo = Number(lead.ballpark_low), hi = Number(lead.ballpark_high);
   if (Number.isFinite(lo) && Number.isFinite(hi) && lo > 0 && hi >= lo) return `${money(lo)} – ${money(hi)}`;
@@ -35,6 +42,8 @@ function detailRows(lead, { internal }) {
     ["Photos", lead.photo_count ? `${lead.photo_count}` : ""],
   ];
   if (internal) {
+    const campaign = campaignLabel(lead);
+    if (campaign) rows.unshift(["Source", campaign]);
     rows.push(["Ballpark given", ballparkText(lead) || "None (call for a ballpark)"]);
     rows.push(["Ballpark breakdown", lead.breakdown]);
     rows.push(["Came in through", SOURCE_LABEL[lead.source] || lead.source]);
@@ -63,7 +72,8 @@ export function buildTeamEmail(lead, photoLinks = []) {
   const tag = lead.test ? "TEST – " : "";
   const urgent = lead.urgent ? "URGENT – " : "";
   const where = lead.town || lead.address || "no address";
-  const subject = `${tag}${urgent}New lead: ${lead.name || "No name"} – ${where}`;
+  const campaign = campaignLabel(lead);
+  const subject = `${tag}${urgent}New lead: ${lead.name || "No name"} – ${where}${campaign ? ` [${campaign}]` : ""}`;
   const rows = detailRows(lead, { internal: true });
   const note = "Review the photos and the map, then call the customer back at their best time and confirm the real price.";
   const html = `<div>${rows.map(([k, v]) => `${esc(k)}: ${esc(v).replace(/\n/g, "<br>")}`).join("<br>\n")}` +

@@ -11,6 +11,12 @@ function fromList(env) {
 }
 
 export const config = {
+  // Friendly campaign names for the lead alert ("Source: FB reel Nov 22").
+  // Matched against the lead's source_detail (src=... or utm_campaign=...). First match wins.
+  CAMPAIGN_LABELS: [
+    { match: /(^|[\s·&?])src=fbboost1122\b|utm_medium=paid_social.*utm_campaign=blake_reel_nov22|utm_campaign=blake_reel_nov22.*utm_medium=paid_social/i, label: "FB reel Nov 22 (boost)" },
+    { match: /(^|[\s·&?])src=fbreel1122\b|utm_campaign=blake_reel_nov22/i, label: "FB reel Nov 22" },
+  ],
   // Who gets the full lead card (details, photos, ballpark). Comma-separated.
   // Blake's slot: add his address here (or in the LEAD_TEAM_EMAILS env var) to turn his copies on.
   LEAD_TEAM_EMAILS: list(process.env.LEAD_TEAM_EMAILS ?? "shaun.brasher@gmail.com"),
