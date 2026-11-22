@@ -12,7 +12,7 @@ One lead intake for 3 B's Tree Removal. Three ways in:
 Each lead is saved to `tree_leads.leads` (+ `tree_leads.lead_photos`), then:
 
 1. **Team email** (full card, photos attached + links, ballpark, map) To everyone in `LEAD_TEAM_EMAILS`.
-2. **Customer confirmation** (if they gave an email): their details + ballpark, "our team will call you back", with `LEAD_TEAM_EMAILS` BCC'd.
+2. **Customer confirmation** (if they gave an email): their details + ballpark, "our team will call you back with a price", with `LEAD_TEAM_EMAILS` BCC'd.
 
 ## Who gets copies (one line)
 
