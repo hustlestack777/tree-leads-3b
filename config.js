@@ -36,7 +36,7 @@ export const config = {
   // Public base URL of this service, used for photo links in the team email.
   PUBLIC_URL: process.env.PUBLIC_URL || process.env.RENDER_EXTERNAL_URL || "",
   // Quote form link given to phone/chat customers so they can add photos.
-  SITE_URL: process.env.SITE_URL || "https://hustlestack777.github.io/preview-3b-dc5d2e3804ad/",
+  SITE_URL: process.env.SITE_URL || "https://3bs.getpros.xyz",
   // Browser origins allowed to post the website form.
   // The live lead-magnet page is always allowed, even when the env var overrides the list.
   ALLOWED_ORIGINS: [...new Set([...list(process.env.ALLOWED_ORIGINS ?? "https://hustlestack777.github.io,https://3bstreeremoval.com,https://www.3bstreeremoval.com"), "https://tree-lrl-credit-preview.onrender.com",

@@ -1,4 +1,5 @@
 import { config } from "./config.js";
+import { areaFlag } from "./area.js";
 
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const money = (n) => "$" + Math.round(Number(n)).toLocaleString("en-US");
@@ -44,6 +45,8 @@ function detailRows(lead, { internal }) {
   if (internal) {
     const campaign = campaignLabel(lead);
     if (campaign) rows.unshift(["Source", campaign]);
+    const area = areaFlag(lead);
+    if (area.label) rows.splice(rows.findIndex(([k]) => k === "Work needed"), 0, ["Area", area.label]);
     rows.push(["Ballpark given", ballparkText(lead) || "None (call for a ballpark)"]);
     rows.push(["Ballpark breakdown", lead.breakdown]);
     rows.push(["Came in through", SOURCE_LABEL[lead.source] || lead.source]);
@@ -73,7 +76,8 @@ export function buildTeamEmail(lead, photoLinks = []) {
   const urgent = lead.urgent ? "URGENT – " : "";
   const where = lead.town || lead.address || "no address";
   const campaign = campaignLabel(lead);
-  const subject = `${tag}${urgent}New lead: ${lead.name || "No name"} – ${where}${campaign ? ` [${campaign}]` : ""}`;
+  const outside = areaFlag(lead).status === "outside" ? " [Outside main area]" : "";
+  const subject = `${tag}${urgent}New lead: ${lead.name || "No name"} – ${where}${campaign ? ` [${campaign}]` : ""}${outside}`;
   const rows = detailRows(lead, { internal: true });
   const note = "Review the photos and the map, then call the customer back at their best time and confirm the real price.";
   const html = `<div>${rows.map(([k, v]) => `${esc(k)}: ${esc(v).replace(/\n/g, "<br>")}`).join("<br>\n")}` +
@@ -96,14 +100,14 @@ export function buildCustomerEmail(lead) {
     : `We'll go over a ballpark price with you when we call you back.`;
   const html = `<div style="font:15px/1.5 Arial,sans-serif;color:#222;max-width:560px">
 <p>Hi ${esc(first)},</p>
-<p>Thanks for reaching out to ${esc(config.BUSINESS_NAME)}. We got your request, and our team will call you back${lead.best_day || lead.best_time ? " at the time you picked" : " soon"}.</p>
+<p>Thanks for reaching out to ${esc(config.BUSINESS_NAME)}. We got your request, and our team will call you back with a price${lead.best_day || lead.best_time ? " at the time you picked" : ""}.</p>
 ${rangeHtml}
 <p><b>Here's what you sent us:</b></p>
 ${table(rows)}
 ${lead.source !== "web" && !lead.photo_count ? `<p>Want to send photos? You can add them here: <a href="${esc(config.SITE_URL)}">${esc(config.SITE_URL)}</a>. Photos are optional; your description is enough for us to get started.</p>` : ""}
 <p>Anything to add or change? Just reply to this email, or call us at <a href="tel:${config.PHONE_TEL}">${esc(config.PHONE_DISPLAY)}</a>.</p>
 <p>${esc(config.BUSINESS_NAME)}<br>Serving ${esc(config.REGION)}<br>${esc(config.PHONE_DISPLAY)}</p></div>`;
-  const text = `Hi ${first},\n\nThanks for reaching out to ${config.BUSINESS_NAME}. We got your request, and our team will call you back${lead.best_day || lead.best_time ? " at the time you picked" : " soon"}.\n\n${rangeText}\n\nHere's what you sent us:\n${textRows(rows)}${lead.source !== "web" && !lead.photo_count ? `\n\nWant to send photos? You can add them here: ${config.SITE_URL} Photos are optional; your description is enough for us to get started.` : ""}\n\nAnything to add or change? Just reply to this email, or call us at ${config.PHONE_DISPLAY}.\n\n${config.BUSINESS_NAME}\nServing ${config.REGION}\n${config.PHONE_DISPLAY}`;
+  const text = `Hi ${first},\n\nThanks for reaching out to ${config.BUSINESS_NAME}. We got your request, and our team will call you back with a price${lead.best_day || lead.best_time ? " at the time you picked" : ""}.\n\n${rangeText}\n\nHere's what you sent us:\n${textRows(rows)}${lead.source !== "web" && !lead.photo_count ? `\n\nWant to send photos? You can add them here: ${config.SITE_URL} Photos are optional; your description is enough for us to get started.` : ""}\n\nAnything to add or change? Just reply to this email, or call us at ${config.PHONE_DISPLAY}.\n\n${config.BUSINESS_NAME}\nServing ${config.REGION}\n${config.PHONE_DISPLAY}`;
   return { subject, html, text };
 }
 

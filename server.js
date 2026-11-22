@@ -4,6 +4,7 @@ import { Resend } from "resend";
 import { config } from "./config.js";
 import { db, migrate } from "./db.js";
 import { buildCustomerEmail, buildFeedbackEmail, buildTeamEmail } from "./emails.js";
+import { agentSourceDetail } from "./agent-source.js";
 
 const app = express();
 app.set("trust proxy", true);
@@ -197,7 +198,7 @@ app.post("/api/agent-lead", async (req, res) => {
     const channel = String(b.channel || "phone").toLowerCase().includes("chat") ? "chat" : "phone";
     const lead = {
       source: channel,
-      source_detail: s(b.conversation_id ? `conversation ${b.conversation_id}` : channel === "phone" ? "318-712-TREE" : "website chat", 200),
+      source_detail: s(agentSourceDetail(b, channel), 400),
       external_id: s(b.conversation_id, 120) ? `${channel}:${s(b.conversation_id, 120)}` : null,
       name: s(b.name, 120), phone: s(b.phone || b.caller_phone, 40),
       email: validEmail(s(b.email, 200)) ? s(b.email, 200) : null,
