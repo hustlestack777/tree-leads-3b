@@ -24,3 +24,5 @@ services:
         sync: false
       - key: AGENT_TOOL_TOKEN
         sync: false
+      - key: PHONE_FORWARD_TOKEN
+        sync: false
