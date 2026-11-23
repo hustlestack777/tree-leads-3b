@@ -8,6 +8,7 @@ One lead intake for 3 B's Tree Removal. Three ways in:
 | Phone line 318-712-TREE (ElevenLabs agent server tool `save_lead`) | `POST /api/agent-lead` | `X-Lead-Token` header (ElevenLabs secret) |
 | Website chat (same ElevenLabs agent, chat mode) | `POST /api/agent-lead` with `channel: "chat"` | same |
 | Camille feedback (Blake or Shaun on 318-712-TREE) | `POST /api/agent-feedback` (ElevenLabs tool `save_feedback`) | same `X-Lead-Token` |
+| Forwarded phone calls (318-712-TREE → Blake's cell, from firewood.delivery `/api/3bs/forward`) | `POST /api/phone-call` | same `X-Lead-Token` |
 
 Each lead is saved to `tree_leads.leads` (+ `tree_leads.lead_photos`), then:
 
@@ -30,3 +31,13 @@ Copy rules: never names a person as the caller, no "free", no "insured", no text
 Sender: `3 B's Tree Removal <3bs@getpros.xyz>` (getpros.xyz is verified in Resend). If Resend refuses it, the alert retries from `3bs@lagniapperealmlabs.com`; a hustlestack.app `RESEND_FROM` env value is only a last resort so no alert is lost. Reply-to is unchanged.
 
 Price ranges: only a trimming-only lead keeps a ballpark range. Any lead whose work includes removal, stumps, storm cleanup, land clearing or dirt work is stored and emailed with no range ("call for a ballpark").
+
+## Forwarded phone calls
+
+`POST /api/phone-call` upserts a `source=phone` lead keyed by `external_id = phone:<CallSid>`.
+
+- `notify: false` (or omitted) saves or updates the row and does **not** email anyone. The inbound ring and an answered call use this.
+- `notify: true` sends the team lead alert **once** (Blake and Shaun, via `LEAD_TEAM_EMAILS`; test leads go to Shaun only). Use this when the call is missed, including when a voicemail recording URL is ready.
+- Body: `conversation_id` (required, the Twilio CallSid), `phone`, `call_status` (`ringing` / `answered` / `missed` / `voicemail` / `canceled` / `failed`), `duration`, `voicemail_url`, optional `test: true` or a 555 caller number (those never email Blake).
+
+The caller's personal cell that we forward *to* is not stored or emailed. Answered-call recording is not enabled.
