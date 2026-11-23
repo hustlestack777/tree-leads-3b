@@ -52,6 +52,8 @@ function detailRows(lead, { internal }) {
     rows.push(["Came in through", SOURCE_LABEL[lead.source] || lead.source]);
     rows.push(["Page / campaign", lead.source_detail]);
     rows.push(["Map", lead.map_url]);
+    if (lead.call_status) rows.push(["Call result", lead.call_status + (lead.call_duration_seconds ? ` (${lead.call_duration_seconds}s)` : "")]);
+    if (lead.voicemail_url) rows.push(["Voicemail", lead.voicemail_url]);
     rows.push(["Call summary", lead.call_summary]);
     rows.push(["Received", chicago(lead.created_at)]);
     rows.push(["Lead ID", lead.id]);
@@ -77,7 +79,10 @@ export function buildTeamEmail(lead, photoLinks = []) {
   const where = lead.town || lead.address || "no address";
   const campaign = campaignLabel(lead);
   const outside = areaFlag(lead).status === "outside" ? " [Outside main area]" : "";
-  const subject = `${tag}${urgent}New lead: ${lead.name || "No name"} – ${where}${campaign ? ` [${campaign}]` : ""}${outside}`;
+  const missed = lead.source === "phone" && /missed|voicemail|canceled|failed/i.test(String(lead.call_status || lead.call_summary || ""));
+  const subject = missed
+    ? `${tag}${urgent}Missed call: ${lead.phone || "unknown number"}${campaign ? ` [${campaign}]` : ""}${outside}`
+    : `${tag}${urgent}New lead: ${lead.name || "No name"} – ${where}${campaign ? ` [${campaign}]` : ""}${outside}`;
   const rows = detailRows(lead, { internal: true });
   const note = "Review the photos and the map, then call the customer back at their best time and confirm the real price.";
   const html = `<div>${rows.map(([k, v]) => `${esc(k)}: ${esc(v).replace(/\n/g, "<br>")}`).join("<br>\n")}` +

@@ -5,6 +5,7 @@ import { config } from "./config.js";
 import { db, migrate } from "./db.js";
 import { buildCustomerEmail, buildFeedbackEmail, buildTeamEmail } from "./emails.js";
 import { agentSourceDetail } from "./agent-source.js";
+import { phoneCallLead } from "./phone-call.js";
 
 const app = express();
 app.set("trust proxy", true);
@@ -155,6 +156,47 @@ async function sendEmails(lead, photos, photoKey) {
   return { teamId, customerId, error: errors.join("; ") || null };
 }
 
+
+/** Upsert a source=phone lead for a forwarded 318-712-TREE call. Emails only when notify is true and no team email has gone out yet. */
+async function upsertPhoneCall(body, { notify } = {}) {
+  const lead = phoneCallLead(body);
+  if (!lead.external_id) throw new Error("conversation_id required");
+  lead.test = isTest(lead) || body.test === true;
+  const id = crypto.randomUUID();
+  const photoKey = crypto.randomBytes(18).toString("base64url");
+  const ins = await db().query(
+    `INSERT INTO tree_leads.leads (
+        id, source, source_detail, external_id, test, name, phone,
+        call_summary, description, photo_key, raw,
+        call_status, call_duration_seconds, voicemail_url
+      ) VALUES ($1,'phone',$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
+      ON CONFLICT (external_id) DO UPDATE SET
+        source_detail = EXCLUDED.source_detail,
+        test = tree_leads.leads.test OR EXCLUDED.test,
+        phone = COALESCE(EXCLUDED.phone, tree_leads.leads.phone),
+        name = COALESCE(EXCLUDED.name, tree_leads.leads.name),
+        call_summary = COALESCE(EXCLUDED.call_summary, tree_leads.leads.call_summary),
+        description = COALESCE(EXCLUDED.description, tree_leads.leads.description),
+        raw = EXCLUDED.raw,
+        call_status = COALESCE(EXCLUDED.call_status, tree_leads.leads.call_status),
+        call_duration_seconds = COALESCE(EXCLUDED.call_duration_seconds, tree_leads.leads.call_duration_seconds),
+        voicemail_url = COALESCE(EXCLUDED.voicemail_url, tree_leads.leads.voicemail_url)
+      RETURNING *`,
+    [id, lead.source_detail, lead.external_id, lead.test, lead.name, lead.phone,
+      lead.call_summary, lead.description, photoKey, lead.raw || null,
+      lead.call_status, lead.call_duration_seconds, lead.voicemail_url],
+  );
+  const row = ins.rows[0];
+  const out = { ...lead, ...row };
+  let mail = { teamId: row.team_email_id, customerId: row.customer_email_id, error: row.email_error };
+  if (notify && !row.team_email_id) {
+    mail = await sendEmails(out, [], row.photo_key);
+    await db().query(`UPDATE tree_leads.leads SET team_email_id=$2, customer_email_id=$3, email_error=$4 WHERE id=$1`,
+      [row.id, mail.teamId, mail.customerId, mail.error]);
+  }
+  return { id: row.id, test: row.test || out.test, emailed: !!(mail.teamId), call_status: row.call_status, alreadyEmailed: !!row.team_email_id };
+}
+
 // (1) Website form.
 app.post("/api/leads", async (req, res) => {
   try {
@@ -220,6 +262,22 @@ app.post("/api/agent-lead", async (req, res) => {
   }
 });
 
+
+
+// (2b) Forwarded phone call from firewood.delivery /api/3bs/forward.
+// Auth: same X-Lead-Token as /api/agent-lead. notify=true sends the team alert (once).
+app.post("/api/phone-call", async (req, res) => {
+  if (!requireAgentToken(req, res)) return;
+  try {
+    const b = req.body || {};
+    if (!s(b.conversation_id || b.CallSid, 120)) return res.status(400).json({ ok: false, error: "conversation_id is required." });
+    const r = await upsertPhoneCall(b, { notify: b.notify === true });
+    res.json({ ok: true, id: r.id, test: r.test, emailed: r.emailed, alreadyEmailed: r.alreadyEmailed, status: r.call_status });
+  } catch (e) {
+    console.error("phone-call failed", e);
+    res.status(500).json({ ok: false, error: "Could not save the call." });
+  }
+});
 
 // (3) Agent feedback from Blake or Shaun. Emails Shaun only. Never creates a lead. Never emails Blake.
 app.post("/api/agent-feedback", async (req, res) => {
