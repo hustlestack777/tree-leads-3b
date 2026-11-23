@@ -6,6 +6,7 @@ import { db, migrate } from "./db.js";
 import { buildCustomerEmail, buildFeedbackEmail, buildTeamEmail } from "./emails.js";
 import { agentSourceDetail } from "./agent-source.js";
 import { phoneCallLead } from "./phone-call.js";
+import { headerTokenMatches } from "./token.js";
 
 const app = express();
 app.set("trust proxy", true);
@@ -64,9 +65,18 @@ async function rateLimited(ip) {
 
 
 function requireAgentToken(req, res) {
-  const token = process.env.AGENT_TOOL_TOKEN;
   const given = String(req.headers["x-lead-token"] || "");
-  if (!token || given.length !== token.length || !crypto.timingSafeEqual(Buffer.from(given), Buffer.from(token))) {
+  if (!headerTokenMatches(given, process.env.AGENT_TOOL_TOKEN)) {
+    res.status(401).json({ ok: false });
+    return false;
+  }
+  return true;
+}
+
+/** /api/phone-call: existing AGENT_TOOL_TOKEN still works; PHONE_FORWARD_TOKEN is also accepted. */
+function requirePhoneCallToken(req, res) {
+  const given = String(req.headers["x-lead-token"] || "");
+  if (!headerTokenMatches(given, process.env.AGENT_TOOL_TOKEN, process.env.PHONE_FORWARD_TOKEN)) {
     res.status(401).json({ ok: false });
     return false;
   }
@@ -265,9 +275,9 @@ app.post("/api/agent-lead", async (req, res) => {
 
 
 // (2b) Forwarded phone call from firewood.delivery /api/3bs/forward.
-// Auth: same X-Lead-Token as /api/agent-lead. notify=true sends the team alert (once).
+// Auth: X-Lead-Token must match AGENT_TOOL_TOKEN or PHONE_FORWARD_TOKEN. notify=true sends the team alert (once).
 app.post("/api/phone-call", async (req, res) => {
-  if (!requireAgentToken(req, res)) return;
+  if (!requirePhoneCallToken(req, res)) return;
   try {
     const b = req.body || {};
     if (!s(b.conversation_id || b.CallSid, 120)) return res.status(400).json({ ok: false, error: "conversation_id is required." });
