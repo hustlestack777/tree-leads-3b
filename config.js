@@ -17,9 +17,12 @@ export const config = {
     { match: /(^|[\s·&?])src=fbboost1122\b|utm_medium=paid_social.*utm_campaign=blake_reel_nov22|utm_campaign=blake_reel_nov22.*utm_medium=paid_social/i, label: "FB reel Nov 22 (boost)" },
     { match: /(^|[\s·&?])src=fbreel1122\b|utm_campaign=blake_reel_nov22/i, label: "FB reel Nov 22" },
   ],
-  // Who gets the full lead card (details, photos, ballpark). Comma-separated.
-  // Blake's slot: add his address here (or in the LEAD_TEAM_EMAILS env var) to turn his copies on.
-  LEAD_TEAM_EMAILS: list(process.env.LEAD_TEAM_EMAILS ?? "shaun.brasher@gmail.com"),
+  // Who gets team alerts (full lead cards and answered/missed 318-712-TREE call alerts).
+  // Comma-separated. Overridable with the LEAD_TEAM_EMAILS env var.
+  // Target is shaun@swampfiregrowth.com; shaun.brasher@gmail.com stays until Zoho
+  // auto-forward of that mailbox to Gmail is confirmed, so the Gmail copy is not dropped.
+  // Blake's slot: add his address here (or in the env var) to turn his copies on.
+  LEAD_TEAM_EMAILS: list(process.env.LEAD_TEAM_EMAILS ?? "shaun@swampfiregrowth.com,shaun.brasher@gmail.com"),
   // Always blind-copied on every customer confirmation email (Shaun's standing rule).
   CUSTOMER_BCC: list(process.env.CUSTOMER_BCC ?? "shaun.brasher@gmail.com"),
   // Sender. Must be on a Resend-verified domain.

@@ -1,5 +1,6 @@
 import { config } from "./config.js";
 import { areaFlag } from "./area.js";
+import { formatTalkTime } from "./phone-call.js";
 
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const money = (n) => "$" + Math.round(Number(n)).toLocaleString("en-US");
@@ -89,6 +90,26 @@ export function buildTeamEmail(lead, photoLinks = []) {
     (photoLinks.length ? `<br><br>\nPhotos (also attached):<br>\n${photoLinks.map((u, i) => `<a href="${esc(u)}">Photo ${i + 1}</a>`).join("<br>\n")}` : "") +
     `<br><br>\n${esc(note)}</div>`;
   const text = `${textRows(rows)}\n${photoLinks.length ? "\nPhotos (also attached):\n" + photoLinks.join("\n") + "\n" : ""}\n${note}`;
+  return { subject, html, text };
+}
+
+
+/** Short team-only alert when Blake answers a forwarded 318-712-TREE call. No customer copy. */
+export function buildAnsweredCallEmail(lead) {
+  const tag = lead.test ? "TEST – " : "";
+  const phone = lead.phone || "unknown number";
+  const talk = formatTalkTime(lead.call_duration_seconds ?? lead.duration);
+  const rows = [
+    ["Time", chicago(lead.created_at || new Date())],
+    ["Caller", phone],
+    ["Result", "Blake answered"],
+    ["Talk time", talk],
+  ].filter(([, v]) => v !== undefined && v !== null && String(v).trim() !== "");
+  const subject = `${tag}Blake answered: ${phone}`;
+  const note = "No customer email or text was sent.";
+  const html = `<div>${rows.map(([k, v]) => `${esc(k)}: ${esc(v).replace(/\n/g, "<br>")}`).join("<br>\n")}` +
+    `<br><br>\n${esc(note)}</div>`;
+  const text = `${textRows(rows)}\n\n${note}`;
   return { subject, html, text };
 }
 
