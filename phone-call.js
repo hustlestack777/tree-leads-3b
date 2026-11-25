@@ -1,7 +1,8 @@
 // Phone-forward lead upsert for 318-712-TREE.
 // Used by firewood.delivery's /api/3bs/forward webhook (not the Camille AI).
 // Every inbound call is stored as source=phone. Team email is sent when notify
-// is true (missed / voicemail / canceled) or when the call was answered.
+// is true (missed / voicemail / canceled), or when an answered call is ready
+// (send_team_email: true — after the recording/transcript, or a short fallback).
 // Answered-call mail is a short team-only alert (no customer email or text).
 export const CALL_STATUSES = ["ringing", "answered", "missed", "voicemail", "canceled", "failed"];
 
@@ -37,11 +38,30 @@ export function formatTalkTime(duration) {
   return `${min} ${s === 1 ? "1 second" : `${s} seconds`}`;
 }
 
-/** Send a team alert once: on notify (missed/voicemail/canceled) or when Blake answered. */
-export function shouldSendPhoneTeamEmail({ notify, callStatus, alreadyEmailed } = {}) {
+/** Send a team alert once: on notify (missed/voicemail/canceled), or when an answered call is ready. */
+export function shouldSendPhoneTeamEmail({ notify, callStatus, alreadyEmailed, sendTeamEmail } = {}) {
   if (alreadyEmailed) return false;
-  if (String(callStatus || "").toLowerCase() === "answered") return true;
+  if (String(callStatus || "").toLowerCase() === "answered") return sendTeamEmail === true;
   return notify === true;
+}
+
+/** Signed firewood listen links only — never a raw Twilio media URL. */
+export function safeRecordingUrl(url) {
+  try {
+    const u = new URL(String(url || ""));
+    if (u.protocol !== "https:") return null;
+    const host = u.hostname.toLowerCase();
+    if (host !== "firewood.delivery" && host !== "www.firewood.delivery") return null;
+    if (!u.pathname.startsWith("/api/3bs/recordings/")) return null;
+    return u.toString().slice(0, 2000);
+  } catch {
+    return null;
+  }
+}
+
+export function safeTranscript(text) {
+  const s = String(text || "").trim();
+  return s ? s.slice(0, 20000) : null;
 }
 
 export function phoneCallSourceDetail({ callSid, status, test } = {}) {
@@ -61,6 +81,8 @@ export function phoneCallLead(body = {}) {
     : null;
   const duration = Number(body.duration ?? body.call_duration_seconds);
   const voicemailUrl = String(body.voicemail_url || "").trim() || null;
+  const recordingUrl = safeRecordingUrl(body.recording_url);
+  const transcript = safeTranscript(body.transcript || body.call_transcript);
   const testHint = body.test === true || /\btest\b/i.test(String(body.source_detail || ""));
   const summary = String(body.summary || callLabel(status, duration, voicemailUrl) || "").slice(0, 2000) || null;
   return {
@@ -72,6 +94,9 @@ export function phoneCallLead(body = {}) {
     call_status: status,
     call_duration_seconds: Number.isFinite(duration) && duration >= 0 ? Math.round(duration) : null,
     voicemail_url: voicemailUrl && /^https:\/\//i.test(voicemailUrl) ? voicemailUrl.slice(0, 500) : null,
+    recording_url: recordingUrl,
+    call_transcript: transcript,
+    transcript_status: String(body.transcript_status || "").trim().slice(0, 40) || null,
     call_summary: summary,
     description: voicemailUrl && /^https:\/\//i.test(voicemailUrl) ? `Voicemail: ${voicemailUrl}`.slice(0, 4000) : null,
     raw: body,

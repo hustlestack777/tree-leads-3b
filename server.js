@@ -198,7 +198,7 @@ async function sendAnsweredCallEmail(lead) {
   return { teamId, customerId: null, error: errors.join("; ") || null };
 }
 
-/** Upsert a source=phone lead for a forwarded 318-712-TREE call. Emails on notify (missed/voicemail/canceled) or when Blake answered, once. */
+/** Upsert a source=phone lead for a forwarded 318-712-TREE call. Emails on notify (missed/voicemail/canceled) or when an answered call is ready (recording/transcript or fallback). */
 async function upsertPhoneCall(body, { notify } = {}) {
   const lead = phoneCallLead(body);
   if (!lead.external_id) throw new Error("conversation_id required");
@@ -209,8 +209,9 @@ async function upsertPhoneCall(body, { notify } = {}) {
     `INSERT INTO tree_leads.leads (
         id, source, source_detail, external_id, test, name, phone,
         call_summary, description, photo_key, raw,
-        call_status, call_duration_seconds, voicemail_url
-      ) VALUES ($1,'phone',$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
+        call_status, call_duration_seconds, voicemail_url,
+        recording_url, call_transcript, transcript_status
+      ) VALUES ($1,'phone',$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
       ON CONFLICT (external_id) DO UPDATE SET
         source_detail = EXCLUDED.source_detail,
         test = tree_leads.leads.test OR EXCLUDED.test,
@@ -221,17 +222,22 @@ async function upsertPhoneCall(body, { notify } = {}) {
         raw = EXCLUDED.raw,
         call_status = COALESCE(EXCLUDED.call_status, tree_leads.leads.call_status),
         call_duration_seconds = COALESCE(EXCLUDED.call_duration_seconds, tree_leads.leads.call_duration_seconds),
-        voicemail_url = COALESCE(EXCLUDED.voicemail_url, tree_leads.leads.voicemail_url)
+        voicemail_url = COALESCE(EXCLUDED.voicemail_url, tree_leads.leads.voicemail_url),
+        recording_url = COALESCE(EXCLUDED.recording_url, tree_leads.leads.recording_url),
+        call_transcript = COALESCE(EXCLUDED.call_transcript, tree_leads.leads.call_transcript),
+        transcript_status = COALESCE(EXCLUDED.transcript_status, tree_leads.leads.transcript_status)
       RETURNING *`,
     [id, lead.source_detail, lead.external_id, lead.test, lead.name, lead.phone,
       lead.call_summary, lead.description, photoKey, lead.raw || null,
-      lead.call_status, lead.call_duration_seconds, lead.voicemail_url],
+      lead.call_status, lead.call_duration_seconds, lead.voicemail_url,
+      lead.recording_url, lead.call_transcript, lead.transcript_status],
   );
   const row = ins.rows[0];
   const out = { ...lead, ...row };
   const alreadyEmailed = !!row.team_email_id;
   let mail = { teamId: row.team_email_id, customerId: row.customer_email_id, error: row.email_error };
-  if (shouldSendPhoneTeamEmail({ notify, callStatus: out.call_status, alreadyEmailed })) {
+  const sendTeamEmail = body.send_team_email === true;
+  if (shouldSendPhoneTeamEmail({ notify, callStatus: out.call_status, alreadyEmailed, sendTeamEmail })) {
     mail = String(out.call_status || "").toLowerCase() === "answered"
       ? await sendAnsweredCallEmail(out)
       : await sendEmails(out, [], row.photo_key);

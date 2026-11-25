@@ -37,9 +37,9 @@ Price ranges: only a trimming-only lead keeps a ballpark range. Any lead whose w
 
 `POST /api/phone-call` upserts a `source=phone` lead keyed by `external_id = phone:<CallSid>`. Auth is `X-Lead-Token` matching `AGENT_TOOL_TOKEN` (unchanged) or `PHONE_FORWARD_TOKEN`.
 
-- `notify: false` (or omitted) saves or updates the row and does **not** email, except when `call_status` is `answered`.
-- An **answered** call sends one short team-only email (time in CT, caller number, "Blake answered", talk time if known) from `3bs@getpros.xyz` to `LEAD_TEAM_EMAILS`. No customer email or text is sent.
+- `notify: false` (or omitted) saves or updates the row and does **not** email, unless `call_status` is `answered` **and** `send_team_email` is true.
+- An **answered** call sends one short team-only email (time in CT, caller number, "Blake answered", talk time if known, a signed recording link, and the transcript) from `3bs@getpros.xyz` to `LEAD_TEAM_EMAILS` when firewood posts `send_team_email: true` (after the recording is ready and transcribed, or a short fallback if the recording never arrives). No customer email or text is sent. The listen link is a signed `firewood.delivery` URL, not a raw Twilio media URL.
 - `notify: true` sends the existing missed-call / voicemail team alert **once** (via `LEAD_TEAM_EMAILS`; test leads go to Shaun only). Use this when the call is missed, including when a voicemail recording URL is ready, or when the caller hung up.
-- Body: `conversation_id` (required, the Twilio CallSid), `phone`, `call_status` (`ringing` / `answered` / `missed` / `voicemail` / `canceled` / `failed`), `duration` (Twilio `DialCallDuration` when answered), `voicemail_url`, optional `test: true` or a 555 caller number (those never email Blake).
+- Body: `conversation_id` (required, the Twilio CallSid), `phone`, `call_status` (`ringing` / `answered` / `missed` / `voicemail` / `canceled` / `failed`), `duration` (Twilio `DialCallDuration` when answered), `voicemail_url`, optional `recording_url` (signed firewood listen link only), `transcript`, `transcript_status`, `send_team_email`, optional `test: true` or a 555 caller number (those never email Blake).
 
-The cell we forward *to* is not stored or emailed. Answered-call recording is not enabled. The firewood forward route does not need a change: it already posts answered calls with duration; this service now emails on that status.
+The cell we forward *to* is not stored or emailed.
