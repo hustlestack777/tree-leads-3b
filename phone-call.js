@@ -1,7 +1,8 @@
 // Phone-forward lead upsert for 318-712-TREE.
 // Used by firewood.delivery's /api/3bs/forward webhook (not the Camille AI).
-// Every inbound call is stored as source=phone. Team email is sent only when
-// notify is true (missed call / voicemail). Answered calls are logged, not emailed.
+// Every inbound call is stored as source=phone. Team email is sent when notify
+// is true (missed / voicemail / canceled) or when the call was answered.
+// Answered-call mail is a short team-only alert (no customer email or text).
 export const CALL_STATUSES = ["ringing", "answered", "missed", "voicemail", "canceled", "failed"];
 
 export function e164ish(phone) {
@@ -20,6 +21,27 @@ export function callLabel(status, duration, voicemailUrl) {
   if (s === "failed") return "Failed to connect";
   if (s === "ringing") return "Ringing";
   return s || "";
+}
+
+
+/** Human talk time for an answered-call alert, or null if unknown. */
+export function formatTalkTime(duration) {
+  if (duration == null || duration === "") return null;
+  const sec = Math.round(Number(duration));
+  if (!Number.isFinite(sec) || sec < 0) return null;
+  if (sec < 60) return sec === 1 ? "1 second" : `${sec} seconds`;
+  const m = Math.floor(sec / 60);
+  const s = sec % 60;
+  const min = m === 1 ? "1 minute" : `${m} minutes`;
+  if (s === 0) return min;
+  return `${min} ${s === 1 ? "1 second" : `${s} seconds`}`;
+}
+
+/** Send a team alert once: on notify (missed/voicemail/canceled) or when Blake answered. */
+export function shouldSendPhoneTeamEmail({ notify, callStatus, alreadyEmailed } = {}) {
+  if (alreadyEmailed) return false;
+  if (String(callStatus || "").toLowerCase() === "answered") return true;
+  return notify === true;
 }
 
 export function phoneCallSourceDetail({ callSid, status, test } = {}) {

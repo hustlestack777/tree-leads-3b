@@ -3,9 +3,9 @@ import express from "express";
 import { Resend } from "resend";
 import { config } from "./config.js";
 import { db, migrate } from "./db.js";
-import { buildCustomerEmail, buildFeedbackEmail, buildTeamEmail } from "./emails.js";
+import { buildAnsweredCallEmail, buildCustomerEmail, buildFeedbackEmail, buildTeamEmail } from "./emails.js";
 import { agentSourceDetail } from "./agent-source.js";
-import { phoneCallLead } from "./phone-call.js";
+import { phoneCallLead, shouldSendPhoneTeamEmail } from "./phone-call.js";
 import { headerTokenMatches } from "./token.js";
 
 const app = express();
@@ -18,6 +18,8 @@ const s = (v, max = 2000) => (v === undefined || v === null ? null : String(v).t
 const int = (v) => { const n = Math.round(Number(v)); return Number.isFinite(n) && n > 0 ? n : null; };
 const validEmail = (e) => !!e && /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e);
 const TEST_LEAD_INBOX = "shaun.brasher@gmail.com";
+// Test 318-712-TREE alerts go only to Shaun, at Swampfire and Gmail, never to Blake.
+const TEST_TEAM_INBOXES = ["shaun@swampfiregrowth.com", "shaun.brasher@gmail.com"];
 const FEEDBACK_TO = "shaun.brasher@gmail.com"; // Feedback never goes to Blake or the team list.
 // A name starting with "TEST" (any case) is a team test: Shaun only, no homeowner email.
 const isTestName = (lead) => /^\s*test/i.test(String(lead.name || ""));
@@ -130,7 +132,7 @@ async function sendEmails(lead, photos, photoKey) {
   let teamId = null, customerId = null;
   // Test leads (name starting with TEST, 555 phone, or "test" source) go to Shaun only,
   // never to Blake or any other team inbox.
-  const teamTo = lead.test ? [TEST_LEAD_INBOX] : config.LEAD_TEAM_EMAILS;
+  const teamTo = lead.test ? TEST_TEAM_INBOXES : config.LEAD_TEAM_EMAILS;
   // Try each sender in order (3bs@getpros.xyz first); a sender Resend refuses falls through
   // to the next one so the alert still goes out.
   const send = async (label, payload, key) => {
@@ -167,7 +169,36 @@ async function sendEmails(lead, photos, photoKey) {
 }
 
 
-/** Upsert a source=phone lead for a forwarded 318-712-TREE call. Emails only when notify is true and no team email has gone out yet. */
+
+/** Answered 318-712-TREE call: one short team email, never a customer email or text. */
+async function sendAnsweredCallEmail(lead) {
+  if (!process.env.RESEND_API_KEY) return { teamId: null, customerId: null, error: "RESEND_API_KEY is not set" };
+  const resend = new Resend(process.env.RESEND_API_KEY);
+  const errors = [];
+  const teamTo = lead.test ? TEST_TEAM_INBOXES : config.LEAD_TEAM_EMAILS;
+  const msg = buildAnsweredCallEmail(lead);
+  const froms = Array.isArray(config.RESEND_FROM) ? config.RESEND_FROM : [config.RESEND_FROM];
+  let teamId = null;
+  for (const [fi, from] of froms.entries()) {
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const { data, error } = await resend.emails.send({
+        from,
+        to: teamTo,
+        subject: msg.subject,
+        html: msg.html,
+        text: msg.text,
+      }, { idempotencyKey: fi ? `tree-answered/${lead.id}/f${fi}` : `tree-answered/${lead.id}` });
+      if (!error) {
+        teamId = data?.id || null;
+        return { teamId, customerId: null, error: null };
+      }
+      if (attempt) errors.push(`team (${from}): ${error.message}`);
+    }
+  }
+  return { teamId, customerId: null, error: errors.join("; ") || null };
+}
+
+/** Upsert a source=phone lead for a forwarded 318-712-TREE call. Emails on notify (missed/voicemail/canceled) or when Blake answered, once. */
 async function upsertPhoneCall(body, { notify } = {}) {
   const lead = phoneCallLead(body);
   if (!lead.external_id) throw new Error("conversation_id required");
@@ -198,13 +229,16 @@ async function upsertPhoneCall(body, { notify } = {}) {
   );
   const row = ins.rows[0];
   const out = { ...lead, ...row };
+  const alreadyEmailed = !!row.team_email_id;
   let mail = { teamId: row.team_email_id, customerId: row.customer_email_id, error: row.email_error };
-  if (notify && !row.team_email_id) {
-    mail = await sendEmails(out, [], row.photo_key);
+  if (shouldSendPhoneTeamEmail({ notify, callStatus: out.call_status, alreadyEmailed })) {
+    mail = String(out.call_status || "").toLowerCase() === "answered"
+      ? await sendAnsweredCallEmail(out)
+      : await sendEmails(out, [], row.photo_key);
     await db().query(`UPDATE tree_leads.leads SET team_email_id=$2, customer_email_id=$3, email_error=$4 WHERE id=$1`,
       [row.id, mail.teamId, mail.customerId, mail.error]);
   }
-  return { id: row.id, test: row.test || out.test, emailed: !!(mail.teamId), call_status: row.call_status, alreadyEmailed: !!row.team_email_id };
+  return { id: row.id, test: row.test || out.test, emailed: !!(mail.teamId), call_status: row.call_status, alreadyEmailed };
 }
 
 // (1) Website form.
@@ -275,7 +309,7 @@ app.post("/api/agent-lead", async (req, res) => {
 
 
 // (2b) Forwarded phone call from firewood.delivery /api/3bs/forward.
-// Auth: X-Lead-Token must match AGENT_TOOL_TOKEN or PHONE_FORWARD_TOKEN. notify=true sends the team alert (once).
+// Auth: X-Lead-Token must match AGENT_TOOL_TOKEN or PHONE_FORWARD_TOKEN. notify=true sends the missed-call team alert (once). Answered calls also email the team, with no customer email.
 app.post("/api/phone-call", async (req, res) => {
   if (!requirePhoneCallToken(req, res)) return;
   try {

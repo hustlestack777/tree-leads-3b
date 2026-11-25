@@ -17,7 +17,7 @@ services:
           name: firewood-db
           property: connectionString
       - key: LEAD_TEAM_EMAILS
-        value: "shaun.brasher@gmail.com"
+        value: "shaun@swampfiregrowth.com,shaun.brasher@gmail.com"
       - key: RESEND_FROM
         value: "3 B's Tree Removal <3bs@getpros.xyz>"
       - key: RESEND_API_KEY

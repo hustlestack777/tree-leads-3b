@@ -18,9 +18,10 @@ Each lead is saved to `tree_leads.leads` (+ `tree_leads.lead_photos`), then:
 ## Who gets copies (one line)
 
 `LEAD_TEAM_EMAILS` (Render env var, or the default in `config.js`). Comma-separated.
+Default is `shaun@swampfiregrowth.com` plus `shaun.brasher@gmail.com` until Zoho auto-forward of the Swampfire mailbox to Gmail is confirmed.
 Add Blake: append his address after a comma.
 
-Test leads: a name that starts with `TEST` (any case, e.g. "Test Shaun"), any phone with a 555 exchange (e.g. 337-555-0142), or a source detail containing "test" is stored with `test = true` and gets `TEST –` in every subject. The team alert goes only to shaun.brasher@gmail.com, never to Blake or the other team inboxes. A `TEST`-named lead also skips the homeowner confirmation email entirely. (555 and test-source leads still send the confirmation to the email typed in, BCC Shaun only.)
+Test leads: a name that starts with `TEST` (any case, e.g. "Test Shaun"), any phone with a 555 exchange (e.g. 337-555-0142), or a source detail containing "test" is stored with `test = true` and gets `TEST –` in every subject. The team alert goes only to Shaun (`shaun@swampfiregrowth.com` and `shaun.brasher@gmail.com`), never to Blake or any other team inbox. A `TEST`-named lead also skips the homeowner confirmation email entirely. (555 and test-source leads still send the confirmation to the email typed in, BCC Shaun only.)
 
 Feedback from Camille (`POST /api/agent-feedback`) is stored in `tree_leads.feedback` and emailed only to shaun.brasher@gmail.com, from `3bs@getpros.xyz`. It never creates a lead, never uses `LEAD_TEAM_EMAILS`, and never emails Blake. Nothing about the agent changes from a feedback call itself.
 
@@ -36,8 +37,9 @@ Price ranges: only a trimming-only lead keeps a ballpark range. Any lead whose w
 
 `POST /api/phone-call` upserts a `source=phone` lead keyed by `external_id = phone:<CallSid>`. Auth is `X-Lead-Token` matching `AGENT_TOOL_TOKEN` (unchanged) or `PHONE_FORWARD_TOKEN`.
 
-- `notify: false` (or omitted) saves or updates the row and does **not** email anyone. The inbound ring and an answered call use this.
-- `notify: true` sends the team lead alert **once** (Blake and Shaun, via `LEAD_TEAM_EMAILS`; test leads go to Shaun only). Use this when the call is missed, including when a voicemail recording URL is ready.
-- Body: `conversation_id` (required, the Twilio CallSid), `phone`, `call_status` (`ringing` / `answered` / `missed` / `voicemail` / `canceled` / `failed`), `duration`, `voicemail_url`, optional `test: true` or a 555 caller number (those never email Blake).
+- `notify: false` (or omitted) saves or updates the row and does **not** email, except when `call_status` is `answered`.
+- An **answered** call sends one short team-only email (time in CT, caller number, "Blake answered", talk time if known) from `3bs@getpros.xyz` to `LEAD_TEAM_EMAILS`. No customer email or text is sent.
+- `notify: true` sends the existing missed-call / voicemail team alert **once** (via `LEAD_TEAM_EMAILS`; test leads go to Shaun only). Use this when the call is missed, including when a voicemail recording URL is ready, or when the caller hung up.
+- Body: `conversation_id` (required, the Twilio CallSid), `phone`, `call_status` (`ringing` / `answered` / `missed` / `voicemail` / `canceled` / `failed`), `duration` (Twilio `DialCallDuration` when answered), `voicemail_url`, optional `test: true` or a 555 caller number (those never email Blake).
 
-The caller's personal cell that we forward *to* is not stored or emailed. Answered-call recording is not enabled.
+The cell we forward *to* is not stored or emailed. Answered-call recording is not enabled. The firewood forward route does not need a change: it already posts answered calls with duration; this service now emails on that status.
