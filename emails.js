@@ -99,16 +99,25 @@ export function buildAnsweredCallEmail(lead) {
   const tag = lead.test ? "TEST – " : "";
   const phone = lead.phone || "unknown number";
   const talk = formatTalkTime(lead.call_duration_seconds ?? lead.duration);
+  const recording = String(lead.recording_url || "").trim();
+  const transcript = String(lead.call_transcript || "").trim();
   const rows = [
     ["Time", chicago(lead.created_at || new Date())],
     ["Caller", phone],
     ["Result", "Blake answered"],
     ["Talk time", talk],
+    ["Recording", recording || "not available"],
+    ["Transcript", transcript || "not available"],
   ].filter(([, v]) => v !== undefined && v !== null && String(v).trim() !== "");
   const subject = `${tag}Blake answered: ${phone}`;
   const note = "No customer email or text was sent.";
-  const html = `<div>${rows.map(([k, v]) => `${esc(k)}: ${esc(v).replace(/\n/g, "<br>")}`).join("<br>\n")}` +
-    `<br><br>\n${esc(note)}</div>`;
+  const htmlRows = rows.map(([k, v]) => {
+    if (k === "Recording" && /^https:\/\//.test(String(v))) {
+      return `${esc(k)}: <a href="${esc(v)}">Listen to recording</a>`;
+    }
+    return `${esc(k)}: ${esc(v).replace(/\n/g, "<br>")}`;
+  }).join("<br>\n");
+  const html = `<div>${htmlRows}<br><br>\n${esc(note)}</div>`;
   const text = `${textRows(rows)}\n\n${note}`;
   return { subject, html, text };
 }

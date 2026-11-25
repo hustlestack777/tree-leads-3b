@@ -57,6 +57,9 @@ export async function migrate() {
     ALTER TABLE tree_leads.leads ADD COLUMN IF NOT EXISTS call_status text;
     ALTER TABLE tree_leads.leads ADD COLUMN IF NOT EXISTS call_duration_seconds integer;
     ALTER TABLE tree_leads.leads ADD COLUMN IF NOT EXISTS voicemail_url text;
+    ALTER TABLE tree_leads.leads ADD COLUMN IF NOT EXISTS recording_url text;
+    ALTER TABLE tree_leads.leads ADD COLUMN IF NOT EXISTS call_transcript text;
+    ALTER TABLE tree_leads.leads ADD COLUMN IF NOT EXISTS transcript_status text;
   `);
   // One-time: tag Shaun's 11/13/2026 9:22 AM CT test call so it stays out of real-lead counts.
   // Idempotent: only updates this conversation, and only if it is still marked live.
